@@ -12,3 +12,6 @@ This project uses Love2D, it includes prerelease appimages of Love2D 12.0 in the
 - [[MIT] Middleclass - Object Orientation for Lua](https://github.com/kikito/middleclass)
 - [[MIT] Evolved - ECS (Entity-Component-System) for Lua](https://github.com/BlackMATov/evolved.lua)
 - [[MIT] Beholder - A simple event observer for Lua](https://github.com/kikito/beholder.lua)
+- [[MIT] Brinevector (modified, "shrimpvec") - A 2D vector library that makes use of ffi when availiable](https://github.com/novemberisms/brinevector)
+    - [Modified Version Here](/project/lib/shrimpvec.lua)
+
