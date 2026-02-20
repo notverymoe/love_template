@@ -2,6 +2,11 @@
 
 Love2D Template for and by Nyatalily 
 
+# License 
+
+This repository is released under the terms of its constituent parts, if
+there is a part you are not using then you may remove it and its terms.
+
 # Tools
 
 ## Love2D
@@ -14,4 +19,5 @@ This project uses Love2D, it includes prerelease appimages of Love2D 12.0 in the
 - [[MIT] Beholder - A simple event observer for Lua](https://github.com/kikito/beholder.lua)
 - [[MIT] Brinevector (modified, "shrimpvec") - A 2D vector library that makes use of ffi when availiable](https://github.com/novemberisms/brinevector)
     - [Modified Version Here](/project/lib/shrimpvec.lua)
+- [[MIT] log.lua - A tiny logging module for Lua.](https://github.com/rxi/log.lua)
 
