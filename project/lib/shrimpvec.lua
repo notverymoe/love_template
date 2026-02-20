@@ -42,12 +42,13 @@
 --- @field x number
 --- @field y number
 local Vec2 = {
---    __HOMEPAGE = 'https://github.com/novemberisms/brinevector/tree/master',
+    __HOMEPAGE = 'https://github.com/notverymoe/love_template',
     __DESCRIPTION = 'A luajit ffi-accelerated vector library, based on brinevector',
     __VERSION = '2026.02.19',
     __LICENSE = [[
         MIT License
 
+        Copyright 2026 Natalie Baker (Modified Version)
         Copyright 2022 Brian Sarfati
 
         Permission is hereby granted, free of charge, to any person obtaining a copy
