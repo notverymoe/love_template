@@ -6,10 +6,16 @@
 --
 -- -- Changelog --
 --
+-- 2026-02-20
+-- - Remove some methods
+-- - Add lua language server typings
+-- - Add rudementry documentation
+-- - Changed Vector to Vec2
+--
 -- 2026-02-16
--- - It makes all operators component-wise and compatible with number
--- - Removes error checking
--- - Adds version of normalize that doesn't check for a zero-length vector
+-- - Make all operators component-wise and compatible with number
+-- - Remove error checking
+-- - Add version of normalize that doesn't check for a zero-length vector
 -- - Add __DESCRIPTION, __VERSION and __LICENSE fields.
 --
 -----------------
@@ -32,7 +38,10 @@
 -- added fallback to table if luajit ffi is not detected (used for unit tests)
 --
 
-local Vector = {
+--- @class Vec2
+--- @field x number
+--- @field y number
+local Vec2 = {
 --    __HOMEPAGE = 'https://github.com/novemberisms/brinevector/tree/master',
     __DESCRIPTION = 'A luajit ffi-accelerated vector library, based on brinevector',
     __VERSION = '2026.02.19',
@@ -61,16 +70,15 @@ local Vector = {
     ]]
 }
 
--- Prevent adding properties to v2d values
-function Vector.__newindex(t, k, v)
-    if t == Vector then
-        rawset(t, k, v)
-    else
-        error("Cannot assign a new property '" .. k .. "' to a Vector", 2)
-    end
+-- Vectors cannot have additional properties
+function Vec2.__newindex(t, k, v)
+    error("Cannot assign a new property '" .. k .. "' to a Vec2", 2)
 end
 
--- Select FFI or Tables
+--------------------------
+-- Select FFI or Tables --
+--------------------------
+
 local ffi
 local VECTORTYPE = "cdata"
 
@@ -86,8 +94,11 @@ else
     VECTORTYPE = "table"
 end
 
+-------------------
 -- Internal Util -- 
+-------------------
 
+--- Unpacks if it's a vector, spreads if its a number
 local function unpackOrSpread(v)
     if type(v) == "number" then
         return v, v
@@ -96,191 +107,328 @@ local function unpackOrSpread(v)
     end
 end
 
+--- Clamps to the given min-max range
 local function clamp(x, min, max)
     return math.min(math.max(min, x), max)
 end
 
+----------------
 -- Module New --
+----------------
 
-if ffi then   
-    setmetatable(Vector, {
+--- @class Vec2Module: Vec2
+--- @operator call:Vec2
+
+if ffi then
+    ffi.metatype("shrimpvec", Vec2)
+    setmetatable(Vec2, {
         __call = function(t, x, y)
-            y = y or x or 0
-            x = x or 0
-            return ffi.new("shrimpvec", x, y)
+            return ffi.new(
+                "shrimpvec",
+                x or 0,
+                y or x or 0
+            )
         end
     })
-    ffi.metatype("shrimpvec", Vector)
 else
-    setmetatable(Vector, {
-        __call = function(t, x, y)
-            y = y or x or 0
-            x = x or 0
-            return setmetatable({ x = x, y = y }, Vector)
+    setmetatable(Vec2, {
+        __call =function(t, x, y)
+            return setmetatable(
+                {
+                    x = x or 0,
+                    y = y or x or 0
+                },
+                Vec2
+            )
         end
     })
 end
 
+-------------
 -- Utility --
+-------------
 
-function Vector.copy(v)
-    return Vector(v.x, v.y)
+--- Clones the given vector
+--- @param v Vec2 Vector to clone
+--- @return Vec2 _ The cloned vector
+function Vec2.clone(v)
+    return Vec2(v.x, v.y)
 end
 
-function Vector.spread(v)
+--- Unpacks the vector into its components
+--- @param v Vec2 The vector to unpack
+--- @return number, number _ (x, y)
+function Vec2.unpack(v)
     return v.x, v.y
 end
 
+-------------------------
 -- Calculations, Unary --
+-------------------------
 
-function Vector.length(v)
+--- Returns the length of the given vector
+--- @param v Vec2 The vector to calculate the length of
+--- @return number _ The length of the vector
+function Vec2.length(v)
     return math.sqrt(v.x*v.x + v.y*v.y)
 end
 
-function Vector.lengthSquared(v)
+--- Returns the square of the length of the vector
+--- @param v Vec2 The vector to calculate the square of the length of
+--- @return number _ The square of the length
+function Vec2.lengthSquared(v)
     return v.x*v.x + v.y*v.y
 end
 
-function Vector.angle(v)
+-- Calculates the angle of the vector ccw from (1, 0) in radians.
+--- @param v Vec2 The vector to calculate the angle of
+--- @return number _ The angle in radians
+function Vec2.angle(v)
     return math.atan2(v.y, v.x)
 end
 
+--------------------------
 -- Calculations, Binary --
+--------------------------
 
-function Vector.dot(v1, v2)
+--- Calculates the dot product of the two given vectors
+--- @param v1 Vec2 A vector in the dot product
+--- @param v2 Vec2 A vector in the dot product
+--- @return number _ The dot product of the two given vectors
+function Vec2.dot(v1, v2)
     return v1.x * v2.x + v1.y * v2.y
 end
 
 -- Transformations, Unary --
 
-function Vector.setLength(v, mag)
-    return v:normalizeOrZero() * mag
-end
-
-function Vector.normalizeOrZero(v)
-    local length = v:length()
-    if length == 0 then
-        return Vector(0, 0)
+--- Calculates the unit normal of the given vector or returns 
+--- a zero-length vector if the given vector is zero-length
+--- @param v Vec2 The vector to calculate the unit normal of
+--- @return Vec2 _ The normalized vector or a zero-length vector if the given vector was zero-length
+function Vec2.normalizeOrZero(v)
+    local lengthSqr = v:lengthSquared()
+    if lengthSqr == 0 then
+        return Vec2(0, 0)
     else
-        return Vector(
-            v.x / length,
-            v.y / length
+    local lengthInv = 1/math.sqrt(lengthSqr)
+        return Vec2(
+            v.x * lengthInv,
+            v.y * lengthInv
         )
     end
 end
 
-function Vector.normalize(v)
+--- Calculates the unit normal of the given vector without checking
+--- the length before division
+--- @param v Vec2 The vector to calculate the unit normal of
+--- @return Vec2 _ The normalized vector 
+function Vec2.normalize(v)
     local lengthInv = 1/v:length()
-    return Vector(
+    return Vec2(
         v.x * lengthInv,
         v.y * lengthInv
     )
 end
 
-function Vector.inverse(v)
-    return Vector(1 / v.x, 1 / v.y)
+--- Calculates the inverse of the vector, equivelent of (1/x, 1/y)
+--- @param v Vec2 The vector to calculate the inverse of
+--- @return Vec2 _ The inverse vector 
+function Vec2.inverse(v)
+    return Vec2(1 / v.x, 1 / v.y)
 end
 
-function Vector.floor(v)
-    return Vector(math.floor(v.x), math.floor(v.y))
+--- Calculates the component-wise floor of the vector
+--- @param v Vec2 The vector to floor
+--- @return Vec2 _ The floored vector
+function Vec2.floor(v)
+    return Vec2(math.floor(v.x), math.floor(v.y))
 end
 
-function Vector.ceil(v)
-    return Vector(math.ceil(v.x), math.ceil(v.y))
+--- Calculates the component-wise round of the vector
+--- @param v Vec2 The vector to croundil
+--- @return Vec2 _ The rounded vector
+function Vec2.round(v)
+    return Vec2(math.ceil(v.x), math.ceil(v.y))
 end
 
+--- Calculates the component-wise ceil of the vector
+--- @param v Vec2 The vector to ceil
+--- @return Vec2 _ The ceiled vector
+function Vec2.ceil(v)
+    return Vec2(math.ceil(v.x), math.ceil(v.y))
+end
+
+---------------------
 -- Transformations --
+---------------------
 
-function Vector.clamp(v, min, max)
-    return Vector(
+--- Clamps the given vector between the range of the other given vectors
+--- @param v Vec2 The vector to clamp the range of
+--- @param min Vec2 The minimium bound ("bottom-left")
+--- @param max Vec2 The maximium bound ("bottom-left")
+--- @return Vec2 _ The clamped vector
+function Vec2.clamp(v, min, max)
+    return Vec2(
         clamp(v.x, min.x, max.x),
         clamp(v.y, min.y, max.y)
     )
 end
 
-function Vector.min(v1, v2)
+--- Calculates the componnent wise minimium of the two given vectors
+--- @param v1 Vec2 | number A vector calculate the component-wise minimium with (numbers are splatted (v1,v1))
+--- @param v2 Vec2 | number A vector calculate the component-wise minimium with (numbers are splatted (v2,v2))
+--- @return Vec2 _ The component-wise minimium of the vectors
+function Vec2.min(v1, v2)
     local x1, y1 = unpackOrSpread(v1)
     local x2, y2 = unpackOrSpread(v2)
-    return Vector(
+    return Vec2(
         math.min(x1, x2),
         math.min(y1, y2)
     )
 end
 
-function Vector.max(v1, v2)
+--- Calculates the componnent wise maximium of the two given vectors
+--- @param v1 Vec2 | number A vector calculate the component-wise minimium with (numbers are splatted (v1,v1))
+--- @param v2 Vec2 | number A vector calculate the component-wise minimium with (numbers are splatted (v2,v2))
+--- @return Vec2 _ The component-wise minimium of the vectors
+function Vec2.max(v1, v2)
     local x1, y1 = unpackOrSpread(v1)
     local x2, y2 = unpackOrSpread(v2)
-    return Vector(
+    return Vec2(
         math.max(x1, x2),
         math.max(y1, y2)
     )
 end
 
-function Vector.rotated(v, angle)
+--- Rotates the given vector by the given angle CCW
+--- @param v Vec2 The vector to rotate
+--- @param angle number The radians to rotate by
+--- @return Vec2 _ The rotated vector
+function Vec2.rotated(v, angle)
     local cos = math.cos(angle)
     local sin = math.sin(angle)
-    return Vector(v.x * cos - v.y * sin, v.x * sin + v.y * cos)
+    return Vec2(
+        v.x * cos - v.y * sin, 
+        v.x * sin + v.y * cos
+    )
 end
 
+------------------------------
 -- Operator Implementations --
+------------------------------
 
-function Vector.__add(v1, v2)
+--- Operator addition. Component-wise.
+--- @param v1 Vec2
+--- @param v2 Vec2 | number
+--- @return Vec2
+function Vec2.__add(v1, v2)
     local x2, y2 = unpackOrSpread(v2)
-    return Vector(v1.x + x2, v1.y + y2)
+    return Vec2(
+        v1.x + x2, 
+        v1.y + y2
+    )
 end
 
-function Vector.__sub(v1, v2)
+--- Operator subtraction. Component-wise.
+--- @param v1 Vec2
+--- @param v2 Vec2 | number
+--- @return Vec2
+function Vec2.__sub(v1, v2)
     local x2, y2 = unpackOrSpread(v2)
-    return Vector(v1.x - x2, v1.y - y2)
+    return Vec2(
+        v1.x - x2, 
+        v1.y - y2
+    )
 end
 
-function Vector.__mul(v1, v2)
+--- Operator multiplication. Component-wise.
+--- @param v1 Vec2
+--- @param v2 Vec2 | number
+--- @return Vec2
+function Vec2.__mul(v1, v2)
     local x2, y2 = unpackOrSpread(v2)
-    return Vector(v1.x * x2, v1.y * y2)
+    return Vec2(
+        v1.x * x2,
+        v1.y * y2
+    )
 end
 
-function Vector.__div(v1, v2)
+--- Operator division. Component-wise.
+--- @param v1 Vec2
+--- @param v2 Vec2 | number
+--- @return Vec2
+function Vec2.__div(v1, v2)
     local x2, y2 = unpackOrSpread(v2)
-    return Vector(v1.x / x2, v1.y / y2)
+    return Vec2(v1.x / x2, v1.y / y2)
 end
 
-function Vector.__mod(v1, v2)
+--- Operator modulus. Component-wise.
+--- @param v1 Vec2
+--- @param v2 Vec2 | number
+--- @return Vec2
+function Vec2.__mod(v1, v2)
     local x2, y2 = unpackOrSpread(v2)
-    return Vector(v1.x % x2, v1.y % y2)
+    return Vec2(v1.x % x2, v1.y % y2)
 end
 
-function Vector.__unm(v)
-    return Vector(-v.x, -v.y)
+--- Operator unary negate. Component-wise.
+--- @param v Vec2
+--- @return Vec2
+function Vec2.__unm(v)
+    return Vec2(-v.x, -v.y)
 end
 
-function Vector.__eq(v1, v2)
+--- Operator equals. Component-wise.
+--- @param v1 Vec2
+--- @param v2 Vec2
+--- @return boolean
+function Vec2.__eq(v1, v2)
     return v1.x == v2.x and v1.y == v2.y
 end
 
-function Vector.__neq(v1, v2)
+--- Operator not equals. Component-wise.
+--- @param v1 Vec2
+--- @param v2 Vec2
+--- @return boolean
+function Vec2.__neq(v1, v2)
     return v1.x ~= v2.x or v1.y ~= v2.y
 end
 
-function Vector.__tostring(t)
-    return string.format("Vector{%.4f, %.4f}", t.x, t.y)
+--- Operator string
+--- @param t Vec2
+--- @return string
+function Vec2.__tostring(t)
+    return string.format("Vec2{%.4f, %.4f}", t.x, t.y)
 end
 
-function Vector.__concat(str, v)
+--- Operator concat (as strings)
+--- @param str string
+--- @param v Vec2
+--- @return string
+function Vec2.__concat(str, v)
     return tostring(str) .. tostring(v)
 end
 
 -- Type Check --
 
 if ffi then
-    function Vector.isVector(arg)
+    --- Tests if the given argument is a vector from this module
+    --- @param arg Vec2
+    --- @return boolean
+    function Vec2.isVec2(arg)
         return ffi.istype("shrimpvec", arg)
     end
 else
-    function Vector.isVector(arg)
-        return type(arg) == VECTORTYPE and arg.x and arg.y
+    --- Tests if the given argument is a vector from this module
+    --- @param arg Vec2
+    --- @return boolean
+    function Vec2.isVec2(arg)
+        return not not (type(arg) == VECTORTYPE and arg.x and arg.y)
     end
 end
 
+----------------
 -- Module End --
+----------------
 
-return Vector
+return Vec2 --[[@as Vec2Module]]

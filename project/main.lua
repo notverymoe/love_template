@@ -6,7 +6,7 @@ local v = v2d(400, 300)
 
 function love.load()
     love.graphics.setDefaultFilter("nearest", "nearest", 0)
-
+    
 end
 
 function love.draw()
