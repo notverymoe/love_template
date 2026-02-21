@@ -2,9 +2,15 @@
 ---------------
 -- Shrimpvec --
 ---------------
--- Shrimpvec is a modified version of Brinevector
+-- Shrimpvec is a heavily modified version of Brinevector
 --
 -- -- Changelog --
+--
+-- 2026-02-21
+-- - Add point in box and point in circle functions
+-- - Add abs and lerp functions
+-- - Changed rotated to rotateBy, lengthSquared to lengthSqr
+-- - Fix initialization logic with x/y defaults
 --
 -- 2026-02-20
 -- - Remove some methods
@@ -100,7 +106,7 @@ end
 -------------------
 
 --- Unpacks if it's a vector, spreads if its a number
-local function unpackOrSpread(v)
+local function unpackOrSplat(v)
     if type(v) == "number" then
         return v, v
     else
@@ -124,30 +130,24 @@ if ffi then
     ffi.metatype("shrimpvec", Vec2)
     setmetatable(Vec2, {
         __call = function(t, x, y)
-            return ffi.new(
-                "shrimpvec",
-                x or 0,
-                y or x or 0
-            )
+            x = x or 0
+            if y == nil then y = x end
+            return ffi.new("shrimpvec", x, y)
         end
     })
 else
     setmetatable(Vec2, {
         __call =function(t, x, y)
-            return setmetatable(
-                {
-                    x = x or 0,
-                    y = y or x or 0
-                },
-                Vec2
-            )
+            x = x or 0
+            if y == nil then y = x end
+            return setmetatable({x, y}, Vec2)
         end
     })
 end
 
--------------
--- Utility --
--------------
+----------------
+-- Operations --
+----------------
 
 --- Clones the given vector
 --- @param v Vec2 Vector to clone
@@ -163,10 +163,6 @@ function Vec2.unpack(v)
     return v.x, v.y
 end
 
--------------------------
--- Calculations, Unary --
--------------------------
-
 --- Returns the length of the given vector
 --- @param v Vec2 The vector to calculate the length of
 --- @return number _ The length of the vector
@@ -177,7 +173,7 @@ end
 --- Returns the square of the length of the vector
 --- @param v Vec2 The vector to calculate the square of the length of
 --- @return number _ The square of the length
-function Vec2.lengthSquared(v)
+function Vec2.lengthSqr(v)
     return v.x*v.x + v.y*v.y
 end
 
@@ -188,10 +184,6 @@ function Vec2.angle(v)
     return math.atan2(v.y, v.x)
 end
 
---------------------------
--- Calculations, Binary --
---------------------------
-
 --- Calculates the dot product of the two given vectors
 --- @param v1 Vec2 A vector in the dot product
 --- @param v2 Vec2 A vector in the dot product
@@ -200,18 +192,16 @@ function Vec2.dot(v1, v2)
     return v1.x * v2.x + v1.y * v2.y
 end
 
--- Transformations, Unary --
-
 --- Calculates the unit normal of the given vector or returns 
 --- a zero-length vector if the given vector is zero-length
 --- @param v Vec2 The vector to calculate the unit normal of
 --- @return Vec2 _ The normalized vector or a zero-length vector if the given vector was zero-length
 function Vec2.normalizeOrZero(v)
-    local lengthSqr = v:lengthSquared()
+    local lengthSqr = v:lengthSqr()
     if lengthSqr == 0 then
         return Vec2(0, 0)
     else
-    local lengthInv = 1/math.sqrt(lengthSqr)
+        local lengthInv = 1/math.sqrt(lengthSqr)
         return Vec2(
             v.x * lengthInv,
             v.y * lengthInv
@@ -238,6 +228,13 @@ function Vec2.inverse(v)
     return Vec2(1 / v.x, 1 / v.y)
 end
 
+--- Calculates the absolute of the vector, equivelent of (abs(x), abs(y))
+--- @param v Vec2 The vector to calculate the absolute of
+--- @return Vec2 _ The absolute vector 
+function Vec2.abs(v)
+    return Vec2(math.abs(v.x), math.abs(v.y))
+end
+
 --- Calculates the component-wise floor of the vector
 --- @param v Vec2 The vector to floor
 --- @return Vec2 _ The floored vector
@@ -259,10 +256,6 @@ function Vec2.ceil(v)
     return Vec2(math.ceil(v.x), math.ceil(v.y))
 end
 
----------------------
--- Transformations --
----------------------
-
 --- Clamps the given vector between the range of the other given vectors
 --- @param v Vec2 The vector to clamp the range of
 --- @param min Vec2 The minimium bound ("bottom-left")
@@ -280,8 +273,8 @@ end
 --- @param v2 Vec2 | number A vector calculate the component-wise minimium with (numbers are splatted (v2,v2))
 --- @return Vec2 _ The component-wise minimium of the vectors
 function Vec2.min(v1, v2)
-    local x1, y1 = unpackOrSpread(v1)
-    local x2, y2 = unpackOrSpread(v2)
+    local x1, y1 = unpackOrSplat(v1)
+    local x2, y2 = unpackOrSplat(v2)
     return Vec2(
         math.min(x1, x2),
         math.min(y1, y2)
@@ -293,8 +286,8 @@ end
 --- @param v2 Vec2 | number A vector calculate the component-wise minimium with (numbers are splatted (v2,v2))
 --- @return Vec2 _ The component-wise minimium of the vectors
 function Vec2.max(v1, v2)
-    local x1, y1 = unpackOrSpread(v1)
-    local x2, y2 = unpackOrSpread(v2)
+    local x1, y1 = unpackOrSplat(v1)
+    local x2, y2 = unpackOrSplat(v2)
     return Vec2(
         math.max(x1, x2),
         math.max(y1, y2)
@@ -305,13 +298,42 @@ end
 --- @param v Vec2 The vector to rotate
 --- @param angle number The radians to rotate by
 --- @return Vec2 _ The rotated vector
-function Vec2.rotated(v, angle)
+function Vec2.rotateBy(v, angle)
     local cos = math.cos(angle)
     local sin = math.sin(angle)
     return Vec2(
         v.x * cos - v.y * sin, 
         v.x * sin + v.y * cos
     )
+end
+
+--- Calculates the linear interpolation between two vectors with the given factor
+--- @param v1 Vec2 The vector to lerp from
+--- @param v2 Vec2 The vector to lerp to
+--- @param t number The interpolation factor (0-1, typically)
+--- @return Vec2 _ The lerped vector
+function Vec2.lerp(v1, v2, t)
+    return v1 + (v2 - v1)*t
+end
+
+--- Tests if the vector, as a point, is within the given rectangle's bounds
+--- @param p Vec2 The point to test
+--- @param r Vec2 The center point of the rectangle
+--- @param hsz Vec2 The half-size of the rectangle
+--- @return boolean _ If the provided point in inside the rectangle
+function Vec2.isInRectangle(p, r, hsz)
+    return math.abs(p.x - r.x) <= hsz.x and math.abs(p.y - r.y) <= hsz.y
+end
+
+--- Tests if the vector, as a point, is within the given circle's bounds
+--- @param p Vec2 The point to test
+--- @param c Vec2 The center point of the circle
+--- @param r Vec2 The radius of the circle
+--- @return boolean _ If the provided point in inside the circle
+function Vec2.isInCircle(p, c, r)
+    local dx = p.x - c.x
+    local dy = p.y - c.y
+    return dx*dx + dy*dy <= r*r
 end
 
 ------------------------------
@@ -323,7 +345,7 @@ end
 --- @param v2 Vec2 | number
 --- @return Vec2
 function Vec2.__add(v1, v2)
-    local x2, y2 = unpackOrSpread(v2)
+    local x2, y2 = unpackOrSplat(v2)
     return Vec2(
         v1.x + x2, 
         v1.y + y2
@@ -335,7 +357,7 @@ end
 --- @param v2 Vec2 | number
 --- @return Vec2
 function Vec2.__sub(v1, v2)
-    local x2, y2 = unpackOrSpread(v2)
+    local x2, y2 = unpackOrSplat(v2)
     return Vec2(
         v1.x - x2, 
         v1.y - y2
@@ -347,7 +369,7 @@ end
 --- @param v2 Vec2 | number
 --- @return Vec2
 function Vec2.__mul(v1, v2)
-    local x2, y2 = unpackOrSpread(v2)
+    local x2, y2 = unpackOrSplat(v2)
     return Vec2(
         v1.x * x2,
         v1.y * y2
@@ -359,7 +381,7 @@ end
 --- @param v2 Vec2 | number
 --- @return Vec2
 function Vec2.__div(v1, v2)
-    local x2, y2 = unpackOrSpread(v2)
+    local x2, y2 = unpackOrSplat(v2)
     return Vec2(v1.x / x2, v1.y / y2)
 end
 
@@ -368,7 +390,7 @@ end
 --- @param v2 Vec2 | number
 --- @return Vec2
 function Vec2.__mod(v1, v2)
-    local x2, y2 = unpackOrSpread(v2)
+    local x2, y2 = unpackOrSplat(v2)
     return Vec2(v1.x % x2, v1.y % y2)
 end
 
