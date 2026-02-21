@@ -77,6 +77,8 @@ local Vec2 = {
     ]]
 }
 
+Vec2.__index = Vec2
+
 -- Vectors cannot have additional properties
 function Vec2.__newindex(t, k, v)
     error("Cannot assign a new property '" .. k .. "' to a Vec2", 2)

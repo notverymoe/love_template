@@ -1,6 +1,25 @@
 # Template
 
-Love2D Template for and by Nyatalily 
+Love2D Template for and by Nyatalily.
+
+# Usage
+
+This template provides an extra layer of callbacks above what Love2D provides natively:
+- [love.load] `lovely.load`
+    - Regular love load method
+- [love.update] `lovely.updateFixed` 
+    - Called at a fixed update rate, potentially multiple times per `love.update`
+    - Can be configured setting `lovely.fixedTimer.fixedDelta`
+- [love.update] `lovely.update` 
+    - Called after `lovely.updateFixed` 
+    - Regular `love.update` method
+- [love.update] `lovely.framePrepare` 
+    - Called after `lovely.update`
+    - Intended to allow you to prepare/finalize graphical elements after processing all game logic
+- [love.draw] `lovely.frameDraw` 
+    - Regular `love.draw` method
+
+The entry point for the game's actual code is [`project/src/game.lua`](project/src/game.lua)
 
 # License 
 
