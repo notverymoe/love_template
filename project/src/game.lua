@@ -1,4 +1,3 @@
--- Copyright 2026 Natalie Baker -- AGPLv3.0 --
 
 local log = require("lib.log")
 

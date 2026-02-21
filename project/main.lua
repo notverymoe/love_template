@@ -1,4 +1,3 @@
--- Copyright 2026 Natalie Baker -- AGPLv3.0 --
 
 --- @class LoveGame
 --- @field load fun(arg: table, unfilteredArg: table)
