@@ -1,10 +1,13 @@
-
 ---------------
 -- Shrimpvec --
 ---------------
 -- Shrimpvec is a heavily modified version of Brinevector
 --
 -- -- Changelog --
+--
+-- 2026-02-23
+-- - Fix various methods
+-- - Add helper method to get screen pixels as vec2
 --
 -- 2026-02-21
 -- - Add point in box and point in circle functions
@@ -47,6 +50,12 @@
 --- @class Vec2
 --- @field x number
 --- @field y number
+--- @operator add:Vec2
+--- @operator sub:Vec2
+--- @operator mul:Vec2
+--- @operator div:Vec2
+--- @operator mod:Vec2
+--- @operator unm:Vec2
 local Vec2 = {
     __HOMEPAGE = 'https://github.com/notverymoe/love_template',
     __DESCRIPTION = 'A luajit ffi-accelerated vector library, based on brinevector',
@@ -125,7 +134,7 @@ end
 -- Module New --
 ----------------
 
---- @class Vec2Module: Vec2
+--- @class ModuleVec2: Vec2
 --- @operator call:Vec2
 
 if ffi then
@@ -186,6 +195,20 @@ function Vec2.angle(v)
     return math.atan2(v.y, v.x)
 end
 
+-- Finds the minimium component value
+--- @param v Vec2 The vector to calculate the minimium component of
+--- @return number _ The minimium component value
+function Vec2.minComponent(v)
+    return math.min(v.x, v.y)
+end
+
+-- Finds the maximum component value
+--- @param v Vec2 The vector to calculate the maximum component of
+--- @return number _ The maximum component value
+function Vec2.maxComponent(v)
+    return math.max(v.x, v.y)
+end
+
 --- Calculates the dot product of the two given vectors
 --- @param v1 Vec2 A vector in the dot product
 --- @param v2 Vec2 A vector in the dot product
@@ -199,9 +222,19 @@ end
 --- @param v Vec2 The vector to calculate the unit normal of
 --- @return Vec2 _ The normalized vector or a zero-length vector if the given vector was zero-length
 function Vec2.normalizeOrZero(v)
+    return Vec2.normalizeOr(v, Vec2(0,0))
+end
+
+--- Calculates the unit normal of the given vector or returns 
+--- a default value if the given vector is zero-length
+--- @generic T
+--- @param v Vec2 The vector to calculate the unit normal of
+--- @param r T The default to return in the case of a zero-length vector
+--- @return Vec2 | T _ The normalized vector or a zero-length vector if the given vector was zero-length
+function Vec2.normalizeOr(v, r)
     local lengthSqr = v:lengthSqr()
     if lengthSqr == 0 then
-        return Vec2(0, 0)
+        return r
     else
         local lengthInv = 1/math.sqrt(lengthSqr)
         return Vec2(
@@ -347,53 +380,58 @@ end
 --- @param v2 Vec2 | number
 --- @return Vec2
 function Vec2.__add(v1, v2)
+    local x1, y1 = unpackOrSplat(v1)
     local x2, y2 = unpackOrSplat(v2)
     return Vec2(
-        v1.x + x2, 
-        v1.y + y2
+        x1 + x2, 
+        y1 + y2
     )
 end
 
 --- Operator subtraction. Component-wise.
---- @param v1 Vec2
+--- @param v1 Vec2 | number
 --- @param v2 Vec2 | number
 --- @return Vec2
 function Vec2.__sub(v1, v2)
+    local x1, y1 = unpackOrSplat(v1)
     local x2, y2 = unpackOrSplat(v2)
     return Vec2(
-        v1.x - x2, 
-        v1.y - y2
+        x1 - x2,
+        y1 - y2
     )
 end
 
 --- Operator multiplication. Component-wise.
---- @param v1 Vec2
+--- @param v1 Vec2 | number
 --- @param v2 Vec2 | number
 --- @return Vec2
 function Vec2.__mul(v1, v2)
+    local x1, y1 = unpackOrSplat(v1)
     local x2, y2 = unpackOrSplat(v2)
     return Vec2(
-        v1.x * x2,
-        v1.y * y2
+        x1 * x2,
+        y1 * y2
     )
 end
 
 --- Operator division. Component-wise.
---- @param v1 Vec2
+--- @param v1 Vec2 | number
 --- @param v2 Vec2 | number
 --- @return Vec2
 function Vec2.__div(v1, v2)
+    local x1, y1 = unpackOrSplat(v1)
     local x2, y2 = unpackOrSplat(v2)
-    return Vec2(v1.x / x2, v1.y / y2)
+    return Vec2(x1 / x2, y1 / y2)
 end
 
 --- Operator modulus. Component-wise.
---- @param v1 Vec2
+--- @param v1 Vec2 | number
 --- @param v2 Vec2 | number
 --- @return Vec2
 function Vec2.__mod(v1, v2)
+    local x1, y1 = unpackOrSplat(v1)
     local x2, y2 = unpackOrSplat(v2)
-    return Vec2(v1.x % x2, v1.y % y2)
+    return Vec2(x1 % x2, y1 % y2)
 end
 
 --- Operator unary negate. Component-wise.
@@ -456,4 +494,23 @@ end
 -- Module End --
 ----------------
 
-return Vec2 --[[@as Vec2Module]]
+----------------
+-- Util Start --
+----------------
+
+-- Only add these functions if the love global exists
+if type(love) =="table" and love.graphics then
+    Vec2.love = {}
+
+    --- @return Vec2
+    function Vec2.love.getWindowPixelDimensions()
+        local scrW, scrH = love.graphics.getPixelDimensions()
+        return Vec2(scrW, scrH)
+    end
+end 
+
+---------------
+-- Util End --
+---------------
+
+return Vec2 --[[@as ModuleVec2]]
